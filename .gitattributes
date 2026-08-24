@@ -1,1 +1,8 @@
-*.csv filter=lfs diff=lfs merge=lfs -text
+*.csv filter=lfs diff=lfs merge=lfs -text linguist-detectable=false
+*.docx linguist-detectable=false
+*.rtf linguist-detectable=false
+*.architect linguist-detectable=false
+*.bak linguist-detectable=false
+*.dtsx linguist-language=XML
+*.dtproj linguist-language=XML
+*.ispac linguist-generated=true
