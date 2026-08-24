@@ -2,11 +2,11 @@
 
 ![SUSEP Insurance Data Warehouse](docs/images/cover.png)
 
-A historical end-to-end ETL and dimensional modeling project built from public Brazilian insurance data using SQL Server 2022, SQL Server Integration Services (SSIS), Visual Studio 2022, and SQL Power Architect.
+This is a historical ETL and dimensional modeling project built from public Brazilian insurance data. It uses SQL Server 2022, SQL Server Integration Services (SSIS), Visual Studio 2022, and SQL Power Architect.
 
-> **Project status:** completed educational project. The implementation was developed between 2023 and 2024, and the committed data snapshot covers the December 2023 reference period. The repository preserves the original SQL Server and SSIS architecture instead of presenting it as a modern production platform.
+> **Status:** This is a completed educational project. I developed it between 2023 and 2024, and the committed data snapshot covers December 2023. The repository keeps the original SQL Server and SSIS architecture; it is not presented as a modern production platform.
 
-## What this project demonstrates
+## What I built
 
 - interpretation of public datasets and their supporting documentation;
 - definition of business scope and fact-table grain;
@@ -19,15 +19,15 @@ A historical end-to-end ETL and dimensional modeling project built from public B
 - load sequencing, source-to-target mapping, and traceability;
 - export of warehouse tables for downstream analysis.
 
-The value of this project is in the transferable data engineering foundations: understanding the source, defining the model, documenting transformation rules, and building a repeatable load process.
+The useful part of this project is the data engineering work behind the tables: understanding the source, defining the model, documenting transformations, and building a load process that can be run again.
 
 ## Business and data context
 
-The Brazilian Private Insurance Superintendence — **SUSEP** — publishes data reported by insurance companies and other supervised organizations through periodic regulatory forms.
+The Brazilian Private Insurance Superintendence, known as **SUSEP**, publishes data reported by insurance companies and other supervised organizations through periodic regulatory forms.
 
 The source files contain information about companies, insurance lines, premiums, claims, technical provisions, reinsurance, and retention limits. They are distributed across multiple CSV files and use regulatory codes that are not immediately suitable for analytical consumption.
 
-This project organizes a subset of those datasets into a dimensional model focused on:
+I organized a subset of those datasets into a dimensional model focused on:
 
 - public-sector surety insurance — line `0775`;
 - private-sector surety insurance — line `0776`;
@@ -35,7 +35,7 @@ This project organizes a subset of those datasets into a dimensional model focus
 
 The original source files and table documentation are available from the [SUSEP statistical data portal](https://www2.susep.gov.br/menuestatistica/ses/principal.aspx).
 
-SUSEP can revise previously published historical data. That behavior influenced the decision to rebuild the fact table during each execution of this historical implementation.
+SUSEP may revise historical data after it has been published. For that reason, this implementation rebuilds the fact table on each run.
 
 ## Architecture
 
@@ -52,7 +52,7 @@ flowchart LR
     G --> H[CSV warehouse exports]
 ```
 
-The pipeline follows four main stages:
+The work is organized into four stages:
 
 1. collect and inspect the SUSEP source files and documentation;
 2. define and create the dimensional model in SQL Server;
@@ -61,7 +61,7 @@ The pipeline follows four main stages:
 
 ![SSIS control flow](docs/images/etl-control-flow.png)
 
-## Technology stack
+## Tools used
 
 | Technology | Role |
 |---|---|
@@ -72,9 +72,9 @@ The pipeline follows four main stages:
 | T-SQL | Schema creation, unknown members, and classification analysis |
 | Git LFS | Versioning of the larger source CSV files |
 
-## Data sources
+## Source data
 
-Seven SUSEP CSV files are used by the project.
+The warehouse uses seven SUSEP CSV files.
 
 | Source file | Primary use |
 |---|---|
@@ -86,11 +86,11 @@ Seven SUSEP CSV files are used by the project.
 | `Ses_seguros.csv` | Premiums, claims, reinsurance values, and time reference |
 | `ses_provramos.csv` | Technical provisions by company, insurance line, and period |
 
-The official SUSEP filenames and the original `data/arquivos_csv/` hierarchy are intentionally preserved because they are used as source contracts by the historical SSIS package. Supporting documentation is organized under `docs/susep-source-documentation/`.
+I kept the official SUSEP filenames and the original `data/arquivos_csv/` hierarchy because the historical SSIS package expects them. Supporting documentation is under `docs/susep-source-documentation/`.
 
-## Dimensional model
+## Warehouse model
 
-The warehouse uses a star schema with three dimensions and one fact table.
+The model uses a star schema with three dimensions and one fact table.
 
 ![Power Architect star schema](docs/images/star-schema-power-architect.png)
 
@@ -98,15 +98,13 @@ The warehouse uses a star schema with three dimensions and one fact table.
 
 ### Fact-table grain
 
-The fact-table grain is:
-
-> one row per company, insurance line, and reference month.
+The fact table has one row per company, insurance line, and reference month.
 
 The composite primary key consists of `id_empresa`, `id_ramo`, and `id_tempo`. Each field is also a foreign key to its corresponding dimension.
 
 ### Company dimension — `dim_empresa`
 
-The company dimension contains:
+The company dimension stores:
 
 - company natural code and description;
 - economic-group code and description;
@@ -117,15 +115,15 @@ The company dimension contains:
 - surety risk-appetite classification;
 - rental guarantee risk-appetite classification.
 
-The integer surrogate key `id_empresa` is generated through SQL Server identity behavior.
+SQL Server generates the integer surrogate key `id_empresa`.
 
 ### Insurance-line dimension — `dim_ramo`
 
-This dimension contains the insurance-line natural code and description, its group code and description, and a Boolean attribute identifying surety insurance lines. It uses the surrogate key `id_ramo`.
+This dimension stores the insurance-line code and description, its group code and description, and a Boolean field for surety insurance. Its surrogate key is `id_ramo`.
 
 ### Time dimension — `dim_tempo`
 
-The time dimension is derived from the `YYYYMM` source reference and contains the full reference, date, month, quarter, semester, and year.
+The time dimension comes from the `YYYYMM` source reference. It stores the full reference, date, month, quarter, semester, and year.
 
 ```text
 Month → Quarter → Semester → Year
@@ -144,7 +142,7 @@ The fact table stores:
 - PSL — outstanding claims provision;
 - IBNR — incurred but not reported claims provision.
 
-The original analytical design also defines downstream metrics that are not materialized as columns by the DDL script:
+The original design also describes these metrics, although the DDL script does not materialize them as columns:
 
 ```text
 Loss ratio = Incurred claims / Earned premium
@@ -153,19 +151,19 @@ Return (%) = Profit / Earned premium × 100
 Reinsurance result = Reinsurance revenue - Reinsurance expenses
 ```
 
-## ETL design
+## ETL
 
 ### Load sequence
 
-The three dimensions are processed before the fact table. The fact table is then cleared and rebuilt from the source files.
+The package loads the three dimensions first, then clears and rebuilds the fact table from the source files.
 
-This full-load approach was chosen because SUSEP can revise historical measures in later source releases. It keeps the educational implementation straightforward and prevents duplicate accumulation.
+I used a full load because later SUSEP releases can revise historical measures. It keeps this implementation easy to follow and avoids accumulating duplicate records.
 
 ### Company dimension load
 
 The company dimension combines company hierarchy, adjusted equity, and retention-limit data.
 
-The workflow:
+For each load, the package:
 
 1. reads company and economic-group information;
 2. converts the reference-period field;
@@ -228,17 +226,17 @@ The rental guarantee classification uses these ranges:
 
 ![Rental guarantee retention tertiles](docs/images/rental-guarantee-retention-tertiles.png)
 
-Both classifications use three data-driven groups, so the related SQL files are described as *tertiles*, not quartiles.
+Both classifications use three groups derived from the data. That is why the related SQL files use the term *tertiles*, not quartiles.
 
 ### Insurance-line dimension load
 
-The workflow reads the insurance-line and group files, derives the group code, joins each line to its group, trims source codes, identifies surety lines `0775` and `0776`, and then updates or inserts dimension members.
+The package reads the insurance-line and group files, derives each group code, joins lines to their groups, trims source codes, identifies surety lines `0775` and `0776`, and updates or inserts dimension members.
 
 ![Insurance-line dimension load](docs/images/insurance-line-dimension-load.png)
 
 ### Time dimension load
 
-The time workflow obtains distinct `YYYYMM` references from `Ses_seguros.csv`, creates a date representation, derives month, quarter, semester, and year attributes, and then updates or inserts dimension members.
+The time load takes distinct `YYYYMM` references from `Ses_seguros.csv`, creates dates, derives month, quarter, semester, and year, and updates or inserts dimension members.
 
 ![Time dimension load](docs/images/time-dimension-load.png)
 
@@ -246,7 +244,7 @@ The time workflow obtains distinct `YYYYMM` references from `Ses_seguros.csv`, c
 
 The fact workflow combines `Ses_seguros.csv` with `ses_provramos.csv`.
 
-The pipeline:
+The package:
 
 1. filters both sources to the insurance lines in scope;
 2. converts measures and reference fields to target data types;
@@ -271,11 +269,11 @@ The pipeline:
 
 Before the ETL package runs, `sql/seed/insert-unknown-dimension-members.sql` creates a member with surrogate key `0` in every dimension.
 
-This provides a valid foreign-key destination when a source record cannot be matched to a previously loaded member. The historical package redirects unmatched lookups to this member instead of rejecting them or writing them to a quarantine table.
+This gives the fact table a valid foreign-key destination when a source record has no matching dimension member. The historical package sends unmatched lookups to this member instead of rejecting them or writing them to a quarantine table.
 
 ## Committed data snapshot
 
-The repository contains a December 2023 source snapshot stored through Git LFS.
+The committed snapshot covers December 2023 and is stored through Git LFS.
 
 ### Source files
 
@@ -299,7 +297,7 @@ The repository contains a December 2023 source snapshot stored through Git LFS.
 | Time dimension | 349 |
 | Premiums, claims, and provisions fact | 12,048 |
 
-These counts describe the files committed to the repository. They are not current SUSEP market totals.
+These row counts belong to the files committed here. They are not current SUSEP market totals.
 
 ## Repository structure
 
@@ -326,7 +324,7 @@ These counts describe the files committed to the repository. They are not curren
 └── README.md
 ```
 
-The external folder structure is now in English. Official source filenames, SSIS component names, and stored category labels remain unchanged to preserve the historical implementation and avoid unvalidated changes to the package internals.
+The top-level folder structure is in English. I left official source filenames, SSIS component names, and stored category labels unchanged to preserve the historical implementation and avoid untested changes inside the packages.
 
 ## Running the historical implementation
 
@@ -377,7 +375,7 @@ To process a newer SUSEP release:
 5. execute the SSIS package;
 6. validate dimension and fact-table row counts.
 
-Because SUSEP can change source layouts and reload historical data, a newer release should not be treated as a guaranteed drop-in replacement without schema validation.
+SUSEP can change source layouts and reload historical data. Validate the schema before treating a newer release as a drop-in replacement.
 
 ## Design decisions and limitations
 
@@ -392,7 +390,7 @@ Because SUSEP can change source layouts and reload historical data, a newer rele
 - Generated Visual Studio artifacts are preserved in history and ignored for future changes.
 - The repository does not include automated tests, CI, or production orchestration.
 
-These limitations are documented rather than hidden. The project demonstrates the foundational decisions required to turn multiple regulatory sources into a traceable dimensional warehouse.
+These limitations are part of the project. They also show the decisions involved in turning several regulatory sources into a dimensional warehouse that can be traced back to its inputs.
 
 ## License
 
@@ -400,9 +398,9 @@ This project is licensed under the [Creative Commons Attribution-NonCommercial 4
 
 ## Acknowledgements and disclaimer
 
-The project uses public data and documentation provided by SUSEP for educational and non-commercial purposes. It is an independent project and is not affiliated with, endorsed by, or maintained by SUSEP.
+This project uses public data and documentation from SUSEP for educational and non-commercial purposes. It is independent and is not affiliated with, endorsed by, or maintained by SUSEP.
 
-The committed data is a historical snapshot and must not be interpreted as current regulatory or market information. Any reuse should be validated against the latest official publications.
+The committed data is a historical snapshot, not current regulatory or market information. Check the latest official publications before reusing it.
 
 ## Author
 
